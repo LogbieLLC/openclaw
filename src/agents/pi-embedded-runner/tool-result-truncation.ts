@@ -6,17 +6,17 @@ import { log } from "./logger.js";
 /**
  * Maximum share of the context window a single tool result should occupy.
  * This is intentionally conservative – a single tool result should not
- * consume more than 30% of the context window even without other messages.
+ * consume more than 20% of the context window even without other messages.
  */
-const MAX_TOOL_RESULT_CONTEXT_SHARE = 0.3;
+const MAX_TOOL_RESULT_CONTEXT_SHARE = 0.2;
 
 /**
  * Hard character limit for a single tool result text block.
  * Even for the largest context windows (~2M tokens), a single tool result
- * should not exceed ~400K characters (~100K tokens).
+ * should not exceed ~200K characters (~50K tokens).
  * This acts as a safety net when we don't know the context window size.
  */
-export const HARD_MAX_TOOL_RESULT_CHARS = 400_000;
+export const HARD_MAX_TOOL_RESULT_CHARS = 200_000;
 
 /**
  * Minimum characters to keep when truncating.
@@ -26,28 +26,41 @@ export const HARD_MAX_TOOL_RESULT_CHARS = 400_000;
 const MIN_KEEP_CHARS = 2_000;
 
 /**
- * Suffix appended to truncated tool results.
+ * Ratio of max chars to preserve from the tail of truncated content.
+ * Preserving the tail helps the model see final output/errors/conclusions.
  */
-const TRUNCATION_SUFFIX =
-  "\n\n⚠️ [Content truncated — original was too large for the model's context window. " +
-  "The content above is a partial view. If you need more, request specific sections or use " +
-  "offset/limit parameters to read smaller chunks.]";
+const TAIL_RATIO = 0.15;
 
 /**
- * Truncate a single text string to fit within maxChars, preserving the beginning.
+ * Truncate a single text string to fit within maxChars, preserving both head and tail.
  */
 export function truncateToolResultText(text: string, maxChars: number): string {
   if (text.length <= maxChars) {
     return text;
   }
-  const keepChars = Math.max(MIN_KEEP_CHARS, maxChars - TRUNCATION_SUFFIX.length);
-  // Try to break at a newline boundary to avoid cutting mid-line
-  let cutPoint = keepChars;
-  const lastNewline = text.lastIndexOf("\n", keepChars);
-  if (lastNewline > keepChars * 0.8) {
-    cutPoint = lastNewline;
+
+  const tailChars = Math.floor(maxChars * TAIL_RATIO);
+  const truncationMarkerLength = 60; // approximate length of truncation marker
+  const headChars = Math.max(MIN_KEEP_CHARS, maxChars - tailChars - truncationMarkerLength);
+
+  // Try to break at newline boundaries to avoid cutting mid-line
+  let headCutPoint = headChars;
+  const lastHeadNewline = text.lastIndexOf("\n", headChars);
+  if (lastHeadNewline > headChars * 0.8) {
+    headCutPoint = lastHeadNewline;
   }
-  return text.slice(0, cutPoint) + TRUNCATION_SUFFIX;
+
+  let tailStartPoint = text.length - tailChars;
+  const firstTailNewline = text.indexOf("\n", tailStartPoint);
+  if (firstTailNewline !== -1 && firstTailNewline < tailStartPoint + tailChars * 0.2) {
+    tailStartPoint = firstTailNewline + 1;
+  }
+
+  const head = text.slice(0, headCutPoint);
+  const tail = text.slice(tailStartPoint);
+  const truncatedChars = text.length - headCutPoint - (text.length - tailStartPoint);
+
+  return `${head}\n\n[...truncated ${truncatedChars} chars...]\n\n${tail}`;
 }
 
 /**

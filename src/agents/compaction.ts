@@ -5,7 +5,7 @@ import { retryAsync } from "../infra/retry.js";
 import { DEFAULT_CONTEXT_TOKENS } from "./defaults.js";
 import { repairToolUseResultPairing, stripToolResultDetails } from "./session-transcript-repair.js";
 
-export const BASE_CHUNK_RATIO = 0.4;
+export const BASE_CHUNK_RATIO = 0.35;
 export const MIN_CHUNK_RATIO = 0.15;
 export const SAFETY_MARGIN = 1.2; // 20% buffer for estimateTokens() inaccuracy
 const DEFAULT_SUMMARY_FALLBACK = "No prior history.";
@@ -334,7 +334,7 @@ export function pruneHistoryForContextShare(params: {
   keptTokens: number;
   budgetTokens: number;
 } {
-  const maxHistoryShare = params.maxHistoryShare ?? 0.5;
+  const maxHistoryShare = params.maxHistoryShare ?? 0.4;
   const budgetTokens = Math.max(1, Math.floor(params.maxContextTokens * maxHistoryShare));
   let keptMessages = params.messages;
   const allDroppedMessages: AgentMessage[] = [];

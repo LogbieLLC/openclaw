@@ -155,7 +155,7 @@ function formatFileOperations(readFiles: string[], modifiedFiles: string[]): str
  * Limited to 2000 chars to avoid bloating the summary.
  */
 async function readWorkspaceContextForSummary(): Promise<string> {
-  const MAX_SUMMARY_CONTEXT_CHARS = 2000;
+  const MAX_SUMMARY_CONTEXT_CHARS = 1500;
   const workspaceDir = process.cwd();
   const agentsPath = path.join(workspaceDir, "AGENTS.md");
 
